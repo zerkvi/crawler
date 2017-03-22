@@ -1,0 +1,57 @@
+# -*- coding: utf-8 -*-
+from bs4 import BeautifulSoup
+from selenium import webdriver
+import codecs
+import bs4
+import csv
+import types
+import sys
+reload(sys)
+sys.setdefaultencoding( "utf-8" )
+
+def connect(url):
+    browser = webdriver.Chrome();
+    browser.get(url)
+    browser.find_element_by_xpath('//*[@id="sorting-price-submenu"]/ul/li[2]/span').click()
+    //above must be changed
+    page = browser.page_source
+    browser.close()
+    return page
+
+
+def parse(page, h, a):
+    if type(page) is unicode:
+        soup = BeautifulSoup(page, 'lxml')
+    else:
+        soup = page
+    if type(a) is dict:
+        collection = soup.find_all(h, attrs=a)
+    else:
+        collection = soup.find(h, attrs={'class': a})
+    return collection
+
+
+url = 'https://www.agoda.com/zh-cn/pages/agoda/default/DestinationSearchResult.aspx?city=5085&checkIn=2017-04-01&los=1&rooms=1&adults=2&children=0&cid=1656582&tag=3c340463-8c7e-4506-8194-032ec25ddd3d&pagetypeid=1&origin=CN&gclid=&aid=97720&userId=770f8851-7f98-4b08-bd47-b6a843509be4&languageId=8&sessionId=tmhrwct0qitym4n30jxsnmlc&storefrontId=3&currencyCode=USD&htmlLanguage=zh-cn&trafficType=User&cultureInfoName=zh-CN&checkOut=2017-04-02&priceCur=USD&hotelReviewScore=5&ckuid=770f8851-7f98-4b08-bd47-b6a843509be4'
+head = ['h3', 'span', 'strong', 'span', 'span', 'span']
+attr = ['hotel-name', 'areacity-name-text'
+    , 'review-score', 'price soft-red',
+        'review-count', 'promotion-description red']
+tag = 'li'
+item = {'data-selenium': 'hotel-item'}
+csvfile = file('csv_test.csv', 'wb')
+csvfile.write(codecs.BOM_UTF8)
+write_csv = csv.writer(csvfile)
+
+if __name__ == "__main__":
+    page = connect(url)
+    tavern = parse(page, tag, item)
+    for ele in tavern:
+        list = []
+        for (he, at) in zip(head, attr):
+            str = parse(ele, he, at)
+            if str is None:
+                list.append(u'none')
+            else:
+                list.append(str.text)
+        write_csv.writerow(list)
+csvfile.close()
