@@ -1,0 +1,80 @@
+# -*- coding: utf-8 -*-
+from bs4 import BeautifulSoup
+from selenium import webdriver
+import time
+import re
+import codecs
+import csv
+import sys
+
+reload(sys)
+sys.setdefaultencoding("utf-8")
+
+
+def sort(lists):
+    pass
+# 根据需求排序，未写
+#click事件也可以访问link但是比亚迪处有bug，而且需要wait效率不高
+
+def geturl(url):
+    browser = webdriver.Firefox()
+    browser.get(url)
+    time.sleep(2)
+    soup = BeautifulSoup(browser.page_source, 'lxml')
+    url = soup.find('div', attrs={'class': 'stockScreener-search-result-table overflowx cloneContainer'})
+    list_url = []
+    add = True
+    for ele in url.find_all('a', attrs={'target': '_blank'}):
+        if add:
+            list_url.append('https://xueqiu.com' + ele.get('href'))
+            add = False
+        else:
+            add = True
+    browser.quit()
+    return list_url
+
+
+def parse(soup, header):
+    list = []
+    name = soup.find('span', attrs={'class': 'stockName'})
+    list.append(name.text)
+    type = soup.find('span', attrs={'class': 'stockType'})
+    list.append(type.text)
+    price = soup.find_all('div', attrs={'class': 'currentInfo'})
+    for ele in price:
+        mode = re.compile(r'[-+]?[0-9]*\.?[0-9]+')
+        price = mode.findall(ele.text)
+        list.append(price[0])
+        list.append(price[1])
+        list.append(price[2])
+    time = soup.find('span', attrs={'id': 'timeInfo'})
+    list.append(time.text)
+    table = soup.find_all('table')
+    for row in table[0].find_all('tr'):
+        for item in row.find_all('td'):
+            text = item.text.split('：')
+            if len(header) < 26:
+                header.append(text[0])
+            list.append(text[1])
+    return list
+
+
+if __name__ == "__main__":
+    header = [u'股票名称', u'股票类型', u'价格', u'增减', u'增减百分比', u'时间']
+    url = 'https://xueqiu.com/hq/screener/CN#category=SH&orderby=tweet7d&order=desc&page=1&tweet7d=ALL'
+    driver = webdriver.Firefox()
+    csvfile = file('xueqiu.csv', 'wb')
+    csvfile.write(codecs.BOM_UTF8)
+    write_csv = csv.writer(csvfile)
+    flag = True
+    list = geturl(url)
+    for i in range(0, 20):
+        driver.get(list[i])
+        soup = BeautifulSoup(driver.page_source, 'lxml')
+        item = parse(soup, header)
+        if flag:
+            flag = False
+            write_csv.writerow(header)
+        write_csv.writerow(item)
+    csvfile.close()
+    driver.quit()
